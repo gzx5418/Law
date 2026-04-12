@@ -44,7 +44,7 @@
 ## 📦 项目结构
 
 ```
-legal-copilot-portable/
+Law/
 ├── SKILL.md                      # Agent 操作手册（AI 读取入口）
 ├── README.md                     # 本文件
 ├── references/                   # 规则标准与参考文档（14 份）
@@ -96,12 +96,12 @@ legal-copilot-portable/
 **方法 1：直接克隆到全局 skills 目录**
 
 ```bash
-git clone https://github.com/ximilalaxiang/law.git ~/.claude/skills/law
+git clone https://github.com/XimilalaXiang/Law.git ~/.claude/skills/law
 ```
 
 **方法 2：手动复制**
 
-将整个 `legal-copilot-portable/` 目录复制到 `~/.claude/skills/law/` 或 `~/.agents/skills/law/`。
+将整个 `Law/` 目录复制到 `~/.claude/skills/law/` 或 `~/.agents/skills/law/`。
 
 ### 配置 API 凭证
 
