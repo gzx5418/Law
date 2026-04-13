@@ -28,6 +28,7 @@ def main() -> None:
     parser.add_argument("--page-size", type=int, default=5)
     parser.add_argument("--sort-field", default="correlation", choices=["correlation", "time"])
     parser.add_argument("--sort-order", default="desc", choices=["asc", "desc"])
+    parser.add_argument("--output", "-o", help="Write result to file instead of stdout (avoids encoding issues)")
     args = parser.parse_args()
 
     selected_count = sum(bool(x) for x in [args.payload, args.payload_file, args.query])
@@ -70,14 +71,45 @@ def main() -> None:
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read().decode("utf-8", errors="ignore")
-            print(body)
+            raw = resp.read()
+            # Auto-detect encoding: try UTF-8 first (standard), fallback to GBK/GB2312 (common for CN legal APIs)
+            body = _decode_bytes(raw)
+            if args.output:
+                with open(args.output, "w", encoding="utf-8") as f:
+                    f.write(body)
+            else:
+                print(body)
     except urllib.error.HTTPError as exc:
-        print(json.dumps({"ok": False, "status": exc.code, "error": exc.reason}, ensure_ascii=False))
+        result = json.dumps({"ok": False, "status": exc.code, "error": exc.reason}, ensure_ascii=False)
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(result)
+        else:
+            print(result)
         raise SystemExit(1)
     except Exception as exc:
-        print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
+        result = json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False)
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(result)
+        else:
+            print(result)
         raise SystemExit(1)
+
+
+def _decode_bytes(raw: bytes) -> str:
+    """Decode API response with automatic encoding detection."""
+    # Try UTF-8 first (standard JSON encoding)
+    for enc in ["utf-8", "gbk", "gb2312", "gb18030"]:
+        try:
+            text = raw.decode(enc)
+            # Validate: decoded text must be valid JSON with no replacement chars
+            parsed = json.loads(text)
+            return json.dumps(parsed, ensure_ascii=False, indent=None)
+        except (UnicodeDecodeError, ValueError):
+            continue
+    # Last resort: utf-8 with error replacement
+    return raw.decode("utf-8", errors="replace")
 
 
 if __name__ == "__main__":

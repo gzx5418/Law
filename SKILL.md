@@ -164,10 +164,14 @@ argument-hint: "<法律问题描述或合同文件>"
 
 | Intent | APIs to Call |
 |--------|-------------|
-| `law` | `python scripts/query_law_api.py --query "…"` |
-| `case` | `python scripts/query_case_api.py --query "…"` |
-| `both` | 两个并行调用 |
+| `law` | `python scripts/query_law_api.py --query "…" --fetch-detail -o /tmp/law.json` |
+| `case` | `python scripts/query_case_api.py --query "…" -o /tmp/case.json` |
+| `both` | 法规（带--fetch-detail -o）+ 案例（-o）并行调用 |
 | `document` | 纯起草跳过；需要法律依据时按 `both` 调用 |
+
+**重要：必须使用 `-o` 参数输出到文件！** Windows 下 Python subprocess 管道传输会破坏 UTF-8 中文编码。使用 `-o output.json` 直接写文件可完全避免此问题，读取文件内容即可。
+
+**法规检索说明：** `queryListLaw` 接口仅返回元数据，必须使用 `--fetch-detail` 参数触发两步式检索（列表→逐条调 `lawInfo` 详情接口合并完整正文），才能获取法条具体内容。
 
 **Hard constraints:**
 - ❌ 绝不在未成功检索时给出实质性法律结论
