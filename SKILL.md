@@ -162,23 +162,67 @@ argument-hint: "<法律问题描述或合同文件>"
 **Goal:** 在得出任何法律结论之前获取权威数据。
 **Exit condition:** 至少一个 API 返回有效结果，或双接口失败均已报告给用户。
 
+#### 推荐调用方式（统一脚本）
+
+**优先使用 `query_both.py` 一站式调用：**
+
+```bash
+python scripts/query_both.py -q "用户问题" -o /tmp/result.json --quiet
+```
+
+输出文件 `result.json` 包含合并的法规+案例结果：
+```json
+{
+  "query": "用户问题",
+  "results": {
+    "law": { "body": { "data": [...], "_detail_stats": {...}, "_search_meta": {...} } },
+    "case": { "body": { "data": [...], "_search_meta": {...} } }
+  }
+}
+```
+
+#### 单独调用方式
+
 | Intent | APIs to Call |
 |--------|-------------|
-| `law` | `python scripts/query_law_api.py --query "…"` |
-| `case` | `python scripts/query_case_api.py --query "…"` |
-| `both` | 两个并行调用 |
+| `law` | `python scripts/query_law_api.py -q "…" --fetch-detail -o /tmp/law.json --quiet` |
+| `case` | `python scripts/query_case_api.py -q "…" -o /tmp/case.json --quiet` |
+| `both` | 用 `query_both.py -q "…" -o /tmp/result.json --quiet` 一行搞定 |
 | `document` | 纯起草跳过；需要法律依据时按 `both` 调用 |
+
+**重要规范：**
+- ✅ **必须使用 `-o` 参数输出到文件**：Windows 下 Python subprocess 管道传输会破坏 UTF-8 中文编码。使用 `-o output.json` 直接写文件可完全避免此问题。
+- ✅ **必须加 `--quiet` 参数**：减少 stderr 噪音输出，避免干扰 Agent 读取。
+- ✅ **法规检索必须加 `--fetch-detail`**：触发两步式检索（列表→逐条调 `lawInfo` 详情接口合并完整正文），否则只拿到元数据没有法条内容。
+
+#### 关键词智能映射（自动优化）
+
+两个脚本内部均内置 **KEYWORD_MAP 关键词映射表**（覆盖 30+ 常见纠纷类型），会自动将用户的自然语言转换为 API 优化关键词：
+
+| 用户输入示例 | 自动映射到（法规） | 自动映射到（案例） |
+|------------|------------------|------------------|
+| `"朋友借钱不还"` | → `民间借贷` → `借款合同` → `借条` | → `民间借贷纠纷 微信转账` |
+| `"房东不退押金"` | → `租赁合同 押金` → `定金` → `民法典 租赁` | → `押金返还纠纷` → `房屋租赁合同纠纷` |
+| `"公司违法辞退"` | → `解除劳动合同` → `经济补偿金` | → `违法解除劳动合同 赔偿` |
+
+**降级策略（内置）：**
+1. 主关键词有结果且 ≥3 条 → 使用
+2. 主关键词结果不足 → 自动切换备选关键词
+3. 所有候选词均失败 → 标注降级原因，按 Retry chain 处理
+
+**无需手动优化关键词！直接传用户原始问题即可。** 映射和降级全部自动化。
 
 **Hard constraints:**
 - ❌ 绝不在未成功检索时给出实质性法律结论
 - ❌ 绝不将 web search 作为主要检索渠道
 - ✅ 一个接口失败时使用另一个的结果，标注失败原因，提供重试选项
 
-**Retry & fallback chain:**
-1. 首次失败 → 自动重试一次（相同参数）。
-2. 仍失败 → 换用精简关键词重试一次。
-3. 仍失败 → 降级为单接口（仅法条或仅案例），标注降级原因。
-4. 双接口全部失败 → 告知用户"检索接口暂时不可用"，征得用户明确同意后方可使用 web search 作为降级补充。
+**Retry & fallback chain（已部分内置到脚本）：**
+1. **关键词降级**（脚本自动完成）→ 主关键词结果不足时自动切换备选关键词，无需手动重试
+2. 首次调用整体失败 → 自动重试一次（相同参数）
+3. 仍失败 → 人工换用精简关键词重试
+4. 仍失败 → 降级为单接口（仅法条或仅案例），标注降级原因
+5. 双接口全部失败 → 告知用户"检索接口暂时不可用"，征得用户明确同意后方可使用 web search 作为降级补充
 
 ### Stage 3 — Compose Response
 
@@ -324,8 +368,12 @@ argument-hint: "<法律问题描述或合同文件>"
 
 ## Directory Index
 
-| Directory | Contents | Index |
+| Directory/File | Contents | Index |
 |-----------|----------|-------|
-| `references/` | 规则标准与参考文档 | `references/README.md` |
-| `assets/templates/` | 可复用文书模板 | `assets/README.md` |
-| `scripts/` | API 脚本、导出工具、实用程序 | `scripts/README.md` |
+| `references/` | 规则标准与参考文档（14份） | `references/README.md` |
+| `assets/templates/` | 可复用文书模板 + 官方示范模板 | `assets/README.md` |
+| `scripts/query_law_api.py` | 法规检索（智能关键词+详情增强） | `--help` |
+| `scripts/query_case_api.py` | 案例检索（智能关键词） | `--help` |
+| `scripts/query_both.py` | **一站式统一检索**（法规+案例，推荐使用） | `--help` |
+| `scripts/health_check.py` | 环境完整性检查 | — |
+| `scripts/validate_output.py` | 输出结构校验 | — |

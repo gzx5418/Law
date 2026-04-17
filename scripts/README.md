@@ -4,7 +4,10 @@
 - `build_case_payload.py`: 生成 `queryListCase` 请求体
 - `build_law_payload.py`: 生成 `queryListLaw` 请求体
 - `query_case_api.py`: 直连 `queryListCase` 接口（支持 `--query` / `--payload` / `--payload-file`）
-- `query_law_api.py`: 直连 `queryListLaw` 接口（支持 `--query` / `--payload` / `--payload-file`）
+- `query_law_api.py`: 直连法规检索接口，支持**两步式详情增强模式**
+  - **模式1（列表）**: 仅返回法规元数据 — `--query "民法典"`
+  - **模式2（列表+详情）**: 获取完整法条正文（推荐）— `--query "民法典" --fetch-detail`
+  - 额外参数: `--max-details N`（限制数量）, `--detail-delay S`（限流间隔）
 - `validate_output.py`: 校验 Markdown 输出结构
 - `export_to_docx.ps1`: 将 Markdown 转为 `.docx`（优先 `markdown_to_docx_converter`，回退 `pandoc`）
 - `find_docx_skill.ps1`: 调试脚本（非主流程依赖）
@@ -17,7 +20,11 @@
 
 ## 快速示例
 ```bash
-python scripts/query_law_api.py --query "深圳市房地产相关的法律规定有哪些？"
+# 法规检索（推荐：带详情，获取完整法条内容）
+python scripts/query_law_api.py --query "深圳市房地产相关的法律规定有哪些？" --fetch-detail
+python scripts/query_law_api.py --query "劳动法" --page-size 10 --fetch-detail --max-details 5
+
+# 案例检索（直接返回完整内容）
 python scripts/query_case_api.py --query "上班途中车祸工伤案例"
 python scripts/build_law_payload.py --keywords 深圳 房地产 法规 --field-name semantic
 python scripts/build_case_payload.py --keywords 上班途中 车祸 工伤
