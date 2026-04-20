@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/law-banner.png" alt="律言 - AI 法律智能助手" width="100%"></p>
+
 # 律言
 
 **律言** — 一个 AI Agent Skill，为日常法律咨询与诉讼分析提供专业级智能辅助。基于真实法律 API 检索，覆盖中国大陆法律体系。
